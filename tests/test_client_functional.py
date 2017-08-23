@@ -2116,3 +2116,18 @@ def test_raise_for_status(loop, test_client):
 
     with pytest.raises(aiohttp.ClientResponseError):
         yield from client.get('/')
+
+
+@asyncio.coroutine
+def test_catch_dns_error(loop, request):
+    connector = aiohttp.TCPConnector(
+        loop=loop,
+        resolver=aiohttp.ThreadedResolver(loop=loop))
+    client = aiohttp.ClientSession(connector=connector)
+    url = 'http://not-exsiting-dns.com/'
+
+    try:
+        with pytest.raises(aiohttp.ClientOSError):
+            yield from client.get(url)
+    finally:
+        yield from client.close()

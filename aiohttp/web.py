@@ -301,8 +301,8 @@ class Application(MutableMapping):
         if resp is None:
             handler = match_info.handler
             for app in match_info.apps[::-1]:
-                for factory in app._middlewares:
-                    handler = yield from factory(app, handler)
+                # assert below needs to look at the middlewares of the last app...
+                pass
 
             resp = yield from handler(request)
 
@@ -445,6 +445,16 @@ def run_app(app, *, host=None, port=None, path=None, sock=None,
             except NotImplementedError:  # pragma: no cover
                 # add_signal_handler is not implemented on Windows
                 pass
+
+        # I know I'm doing that for only one app, which won't fly with subapps.
+        # This is just a hack to show my thinking.
+        for resource in app.router.resources():
+            # another dirty hack; implementing this whole thing properly will probably take some
+            # thinking about interfaces of a few classes.
+            http_handler = resource._routes[0]._handler
+            for factory in app._middlewares:
+                http_handler = loop.run_until_complete(factory(app, http_handler))
+            resource._routes[0]._handler = http_handler
 
         try:
             print("======== Running on {} ========\n"
